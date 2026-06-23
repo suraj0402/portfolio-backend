@@ -1,42 +1,42 @@
 package com.suraj.portfolio.controller;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import com.suraj.portfolio.dto.LoginRequest;
 import com.suraj.portfolio.dto.LoginResponse;
+import com.suraj.portfolio.entity.Admin;
+import com.suraj.portfolio.repository.AdminRepository;
 import com.suraj.portfolio.service.JwtService;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
-    private final JwtService jwtService;
+	private final AdminRepository adminRepository;
+	private final PasswordEncoder passwordEncoder;
+	private final JwtService jwtService;
 
-    public AuthController(JwtService jwtService) {
-        this.jwtService = jwtService;
-    }
+	public AuthController(AdminRepository adminRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
 
-    @PostMapping("/login")
-    public LoginResponse login(
-            @RequestBody LoginRequest request
-    ) {
+		this.adminRepository = adminRepository;
+		this.passwordEncoder = passwordEncoder;
+		this.jwtService = jwtService;
+	}
 
-        if (
-                "admin".equals(request.getUsername())
-                        &&
-                "admin123".equals(request.getPassword())
-        ) {
+	@PostMapping("/login")
+	public LoginResponse login(@RequestBody LoginRequest request) {
 
-            String token =
-                    jwtService.generateToken(
-                            request.getUsername()
-                    );
+		Admin admin = adminRepository.findByUsername(request.getUsername())
+				.orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
-            return new LoginResponse(token);
-        }
+		if (!passwordEncoder.matches(request.getPassword(), admin.getPassword())) {
 
-        throw new RuntimeException(
-                "Invalid credentials"
-        );
-    }
+			throw new RuntimeException("Invalid credentials");
+		}
+
+		String token = jwtService.generateToken(admin.getUsername());
+
+		return new LoginResponse(token);
+	}
 }
